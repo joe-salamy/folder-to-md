@@ -35,5 +35,5 @@ output/
 # Sample / test files
 sample/
 
-# Claude local settings (optional — remove if you want to track these)
-.claude/settings.local.json
+# Claude Code
+.claude/
