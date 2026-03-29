@@ -1,0 +1,5 @@
+pymupdf4llm
+pymupdf_layout
+markitdown
+markitdown[docx]
+pywin32
