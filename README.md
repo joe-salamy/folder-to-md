@@ -24,21 +24,35 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
+## Configuration
+
+Default folders are defined in `config.py`:
+
+```python
+DEFAULT_INPUT_FOLDER = "sample"
+DEFAULT_OUTPUT_FOLDER = "output"
+```
+
+Edit these values to change the defaults without using CLI arguments.
+
 ## Usage
 
 ```bash
-python main.py <source_folder> [output_folder]
+python main.py [source_folder] [output_folder]
 ```
 
-If `output_folder` is omitted, converted files are saved alongside the originals in `source_folder`.
+Both arguments are optional and fall back to the defaults in `config.py`.
 
 **Examples:**
 
 ```bash
-# Convert all documents in a folder, save Markdown files in the same folder
+# Use defaults from config.py (sample/ → output/)
+python main.py
+
+# Convert documents in a specific folder, save to default output folder
 python main.py /path/to/documents
 
-# Convert documents and save Markdown files to a separate folder
+# Convert documents and save Markdown files to a specific folder
 python main.py /path/to/documents /path/to/output
 ```
 

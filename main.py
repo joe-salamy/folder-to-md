@@ -3,22 +3,27 @@ import os
 import tempfile
 import pymupdf4llm
 from markitdown import MarkItDown
+from config import DEFAULT_INPUT_FOLDER, DEFAULT_OUTPUT_FOLDER
 
 
 def main():
     parser = argparse.ArgumentParser(
         description="Batch convert documents (PDF, DOCX, DOC, PPT, PPTX, EPUB) to Markdown."
     )
-    parser.add_argument("source", help="Folder containing documents to convert")
+    parser.add_argument(
+        "source",
+        nargs="?",
+        help=f"Folder containing documents to convert (default: {DEFAULT_INPUT_FOLDER})",
+    )
     parser.add_argument(
         "output",
         nargs="?",
-        help="Folder to save Markdown files (defaults to source folder)",
+        help=f"Folder to save Markdown files (default: {DEFAULT_OUTPUT_FOLDER})",
     )
     args = parser.parse_args()
 
-    doc_folder = args.source
-    md_folder = args.output if args.output else args.source
+    doc_folder = args.source if args.source else DEFAULT_INPUT_FOLDER
+    md_folder = args.output if args.output else DEFAULT_OUTPUT_FOLDER
 
     if not os.path.exists(doc_folder):
         raise FileNotFoundError(f"Document folder not found: {doc_folder}")
