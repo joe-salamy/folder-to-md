@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -13,6 +15,7 @@ from markitdown import MarkItDown
 from config import DEFAULT_INPUT_FOLDER, DEFAULT_OUTPUT_FOLDER
 
 SUPPORTED_EXTENSIONS: set[str] = {".pdf", ".docx", ".doc", ".ppt", ".pptx", ".epub"}
+WD_FORMAT_DOCX: int = 16
 
 
 def convert_pdf(doc_path: Path) -> str:
@@ -47,14 +50,19 @@ def convert_doc(doc_path: Path, word_app: Any) -> str:
     os.close(tmp_fd)
     tmp_path = Path(tmp_path_str)
 
+    doc = None
     try:
         doc = word_app.Documents.Open(str(doc_path.resolve()))
-        doc.SaveAs2(str(tmp_path), FileFormat=16)
+        doc.SaveAs2(str(tmp_path), FileFormat=WD_FORMAT_DOCX)
         doc.Close()
+        doc = None
         md_converter = MarkItDown()
         result = md_converter.convert(str(tmp_path))
         return str(result.text_content)
     finally:
+        if doc is not None:
+            with contextlib.suppress(Exception):
+                doc.Close(SaveChanges=0)
         if tmp_path.exists():
             tmp_path.unlink()
 
@@ -73,15 +81,22 @@ def convert_generic(doc_path: Path) -> str:
     return str(result.text_content)
 
 
-def get_document_files(folder: Path) -> list[Path]:
+def get_document_files(folder: Path, *, recursive: bool = False) -> list[Path]:
     """Collect all supported document files from a folder.
 
     Args:
         folder: Directory to scan for documents.
+        recursive: If True, scan subdirectories as well.
 
     Returns:
         List of paths to supported document files.
     """
+    if recursive:
+        return [
+            f
+            for f in folder.rglob("*")
+            if f.is_file() and f.suffix.lower() in SUPPORTED_EXTENSIONS
+        ]
     return [f for f in folder.iterdir() if f.suffix.lower() in SUPPORTED_EXTENSIONS]
 
 
@@ -119,7 +134,8 @@ def main() -> None:
     """Parse CLI arguments and batch-convert documents to Markdown."""
     parser = argparse.ArgumentParser(
         description=(
-            "Batch convert documents" " (PDF, DOCX, DOC, PPT, PPTX, EPUB) to Markdown."
+            "Batch convert documents"
+            " (PDF, DOCX, DOC, PPT, PPTX, EPUB) to Markdown."
         ),
     )
     parser.add_argument(
@@ -135,6 +151,12 @@ def main() -> None:
         nargs="?",
         help=f"Folder to save Markdown files (default: {DEFAULT_OUTPUT_FOLDER})",
     )
+    parser.add_argument(
+        "-r",
+        "--recursive",
+        action="store_true",
+        help="Scan subdirectories for documents",
+    )
     args = parser.parse_args()
 
     doc_folder = Path(args.source) if args.source else Path(DEFAULT_INPUT_FOLDER)
@@ -145,7 +167,7 @@ def main() -> None:
 
     md_folder.mkdir(parents=True, exist_ok=True)
 
-    doc_files = get_document_files(doc_folder)
+    doc_files = get_document_files(doc_folder, recursive=args.recursive)
 
     if not doc_files:
         print("No documents found in the folder.")
@@ -163,6 +185,7 @@ def main() -> None:
         word = win32com.client.Dispatch("Word.Application")
         word.Visible = False
 
+    failures = 0
     try:
         for doc_path in doc_files:
             output_path = md_folder / (doc_path.stem + ".md")
@@ -173,16 +196,21 @@ def main() -> None:
 
                 output_path.write_text(md_text, encoding="utf-8")
                 print(f"Saved: {output_path}")
-            except (OSError, RuntimeError) as e:
+            except Exception as e:  # noqa: BLE001
+                failures += 1
                 print(f"Error converting {doc_path.name}: {e}")
     finally:
         if word is not None:
             word.Quit()
-            import pythoncom
+            import pythoncom  # noqa: F811
 
             pythoncom.CoUninitialize()
 
-    print("Done.")
+    if failures:
+        print(f"Done with {failures} error(s).")
+        sys.exit(1)
+    else:
+        print("Done.")
 
 
 if __name__ == "__main__":
