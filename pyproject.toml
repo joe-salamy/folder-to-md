@@ -1,0 +1,48 @@
+[project]
+name = "folder-to-md"
+version = "0.1.0"
+description = "Batch convert documents (PDF, DOCX, DOC, PPT, PPTX, EPUB) to Markdown"
+requires-python = ">=3.11"
+dependencies = [
+    "pymupdf4llm",
+    "markitdown",
+    "pywin32",
+]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "markitdown",
+    "pythoncom",
+    "win32com.*",
+]
+ignore_missing_imports = true
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "ANN",  # flake8-annotations
+]
+ignore = [
+    "ANN401",  # allow Any for untyped COM dispatch objects
+]

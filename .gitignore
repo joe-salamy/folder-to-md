@@ -41,4 +41,6 @@ sample/
 # Claude Code
 .claude/
 
+# Development files
 scratchpad.md
+config.py

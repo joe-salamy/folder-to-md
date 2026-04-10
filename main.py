@@ -1,19 +1,134 @@
+"""Batch convert documents (PDF, DOCX, DOC, PPT, PPTX, EPUB) to Markdown."""
+
+from __future__ import annotations
+
 import argparse
-import os
 import tempfile
-import pymupdf4llm
+from pathlib import Path
+from typing import Any
+
+import pymupdf4llm  # type: ignore[import-untyped]
 from markitdown import MarkItDown
+
 from config import DEFAULT_INPUT_FOLDER, DEFAULT_OUTPUT_FOLDER
 
+SUPPORTED_EXTENSIONS: set[str] = {".pdf", ".docx", ".doc", ".ppt", ".pptx", ".epub"}
 
-def main():
+
+def convert_pdf(doc_path: Path) -> str:
+    """Convert a PDF file to Markdown via pymupdf4llm.
+
+    Args:
+        doc_path: Path to the PDF file.
+
+    Returns:
+        Markdown text extracted from the PDF.
+    """
+    result: str = pymupdf4llm.to_markdown(str(doc_path))
+    return result
+
+
+def convert_doc(doc_path: Path, word_app: Any) -> str:
+    """Convert a legacy .doc file to Markdown via Word COM automation.
+
+    Opens the .doc in Word, saves as .docx to a temp file, then converts
+    the .docx with MarkItDown.
+
+    Args:
+        doc_path: Path to the .doc file.
+        word_app: A running Word COM application instance.
+
+    Returns:
+        Markdown text extracted from the document.
+    """
+    import os
+
+    tmp_fd, tmp_path_str = tempfile.mkstemp(suffix=".docx")
+    os.close(tmp_fd)
+    tmp_path = Path(tmp_path_str)
+
+    try:
+        doc = word_app.Documents.Open(str(doc_path.resolve()))
+        doc.SaveAs2(str(tmp_path), FileFormat=16)
+        doc.Close()
+        md_converter = MarkItDown()
+        result = md_converter.convert(str(tmp_path))
+        return str(result.text_content)
+    finally:
+        if tmp_path.exists():
+            tmp_path.unlink()
+
+
+def convert_generic(doc_path: Path) -> str:
+    """Convert a DOCX, PPT, PPTX, or EPUB file to Markdown via MarkItDown.
+
+    Args:
+        doc_path: Path to the document file.
+
+    Returns:
+        Markdown text extracted from the document.
+    """
+    md_converter = MarkItDown()
+    result = md_converter.convert(str(doc_path))
+    return str(result.text_content)
+
+
+def get_document_files(folder: Path) -> list[Path]:
+    """Collect all supported document files from a folder.
+
+    Args:
+        folder: Directory to scan for documents.
+
+    Returns:
+        List of paths to supported document files.
+    """
+    return [f for f in folder.iterdir() if f.suffix.lower() in SUPPORTED_EXTENSIONS]
+
+
+def convert_file(doc_path: Path, word_app: Any | None) -> str:
+    """Route a single file to the appropriate converter.
+
+    Args:
+        doc_path: Path to the document.
+        word_app: Word COM instance (required for .doc files, None otherwise).
+
+    Returns:
+        Markdown text from the converted document.
+
+    Raises:
+        RuntimeError: If a .doc file is encountered but no Word instance exists.
+        ValueError: If the file extension is not supported.
+    """
+    suffix = doc_path.suffix.lower()
+
+    if suffix == ".pdf":
+        return convert_pdf(doc_path)
+    if suffix == ".doc":
+        if word_app is None:
+            msg = f"Word COM instance required for .doc files: {doc_path}"
+            raise RuntimeError(msg)
+        return convert_doc(doc_path, word_app)
+    if suffix in SUPPORTED_EXTENSIONS:
+        return convert_generic(doc_path)
+
+    msg = f"Unsupported file type: {suffix}"
+    raise ValueError(msg)
+
+
+def main() -> None:
+    """Parse CLI arguments and batch-convert documents to Markdown."""
     parser = argparse.ArgumentParser(
-        description="Batch convert documents (PDF, DOCX, DOC, PPT, PPTX, EPUB) to Markdown."
+        description=(
+            "Batch convert documents" " (PDF, DOCX, DOC, PPT, PPTX, EPUB) to Markdown."
+        ),
     )
     parser.add_argument(
         "source",
         nargs="?",
-        help=f"Folder containing documents to convert (default: {DEFAULT_INPUT_FOLDER})",
+        help=(
+            "Folder containing documents to convert"
+            f" (default: {DEFAULT_INPUT_FOLDER})"
+        ),
     )
     parser.add_argument(
         "output",
@@ -22,73 +137,49 @@ def main():
     )
     args = parser.parse_args()
 
-    doc_folder = args.source if args.source else DEFAULT_INPUT_FOLDER
-    md_folder = args.output if args.output else DEFAULT_OUTPUT_FOLDER
+    doc_folder = Path(args.source) if args.source else Path(DEFAULT_INPUT_FOLDER)
+    md_folder = Path(args.output) if args.output else Path(DEFAULT_OUTPUT_FOLDER)
 
-    if not os.path.exists(doc_folder):
+    if not doc_folder.exists():
         raise FileNotFoundError(f"Document folder not found: {doc_folder}")
 
-    if not os.path.exists(md_folder):
-        os.makedirs(md_folder)
+    md_folder.mkdir(parents=True, exist_ok=True)
 
-    md_converter = MarkItDown()
-
-    doc_files = [
-        f
-        for f in os.listdir(doc_folder)
-        if f.lower().endswith((".pdf", ".docx", ".doc", ".ppt", ".pptx", ".epub"))
-    ]
+    doc_files = get_document_files(doc_folder)
 
     if not doc_files:
         print("No documents found in the folder.")
         return
 
     # Open Word once for all .doc files if any exist
-    word = None
-    if any(f.lower().endswith(".doc") for f in doc_files):
-        import win32com.client
+    word: Any | None = None
+    has_doc_files = any(f.suffix.lower() == ".doc" for f in doc_files)
+
+    if has_doc_files:
         import pythoncom
+        import win32com.client
 
         pythoncom.CoInitialize()
         word = win32com.client.Dispatch("Word.Application")
         word.Visible = False
 
     try:
-        for doc_file in doc_files:
-            doc_path = os.path.join(doc_folder, doc_file)
-            output_name = os.path.splitext(doc_file)[0] + ".md"
-            output_path = os.path.join(md_folder, output_name)
+        for doc_path in doc_files:
+            output_path = md_folder / (doc_path.stem + ".md")
 
             try:
-                print(f"Converting: {doc_file} ...")
+                print(f"Converting: {doc_path.name} ...")
+                md_text = convert_file(doc_path, word)
 
-                if doc_file.lower().endswith(".pdf"):
-                    md_text = pymupdf4llm.to_markdown(doc_path)
-                elif doc_file.lower().endswith(".doc"):
-                    tmp_fd, tmp_path = tempfile.mkstemp(suffix=".docx")
-                    os.close(tmp_fd)
-                    try:
-                        doc = word.Documents.Open(os.path.abspath(doc_path))
-                        doc.SaveAs2(tmp_path, FileFormat=16)  # 16 = wdFormatXMLDocument
-                        doc.Close()
-                        result = md_converter.convert(tmp_path)
-                        md_text = result.text_content
-                    finally:
-                        if os.path.exists(tmp_path):
-                            os.unlink(tmp_path)
-                else:
-                    result = md_converter.convert(doc_path)
-                    md_text = result.text_content
-
-                with open(output_path, "w", encoding="utf-8") as md_file:
-                    md_file.write(md_text)
-
+                output_path.write_text(md_text, encoding="utf-8")
                 print(f"Saved: {output_path}")
-            except Exception as e:
-                print(f"Error converting {doc_file}: {e}")
+            except (OSError, RuntimeError) as e:
+                print(f"Error converting {doc_path.name}: {e}")
     finally:
         if word is not None:
             word.Quit()
+            import pythoncom
+
             pythoncom.CoUninitialize()
 
     print("Done.")
