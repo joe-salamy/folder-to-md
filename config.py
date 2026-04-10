@@ -1,2 +1,0 @@
-DEFAULT_INPUT_FOLDER = "sample"
-DEFAULT_OUTPUT_FOLDER = "output"

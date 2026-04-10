@@ -1,0 +1,2 @@
+DEFAULT_INPUT_FOLDER = r"C:\path\to\your\documents"
+DEFAULT_OUTPUT_FOLDER = r"C:\path\to\your\output"

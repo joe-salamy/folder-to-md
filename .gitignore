@@ -18,6 +18,9 @@ build/
 .env
 .env.local
 
+# User config (use config.py.example as template)
+config.py
+
 # IDE / editors
 .vscode/
 .idea/
@@ -37,3 +40,5 @@ sample/
 
 # Claude Code
 .claude/
+
+scratchpad.md
