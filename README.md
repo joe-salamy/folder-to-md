@@ -1,39 +1,44 @@
 # folder-to-md
 
-Batch converts documents (PDF, Word, PowerPoint, EPUB) to Markdown files.
+Batch convert documents (PDF, Word, PowerPoint, EPUB) to Markdown.
 
 ## Supported Formats
 
-| Extension       | Converter                   |
-| --------------- | --------------------------- |
-| `.pdf`          | `pymupdf4llm`               |
-| `.docx`         | `markitdown`                |
-| `.doc`          | Word COM API → `markitdown` |
-| `.ppt`, `.pptx` | `markitdown`                |
-| `.epub`         | `markitdown`                |
+| Extension       | Converter                    | Platform     |
+| --------------- | ---------------------------- | ------------ |
+| `.pdf`          | `pymupdf4llm`                | Any          |
+| `.docx`         | `markitdown`                 | Any          |
+| `.ppt`, `.pptx` | `markitdown`                | Any          |
+| `.epub`         | `markitdown`                 | Any          |
+| `.doc`          | Word COM API → `markitdown`  | Windows only |
 
-## Requirements
+> Legacy `.doc` files require Windows with Microsoft Word installed. All other formats work on any platform.
 
-- Windows (required for `.doc` conversion via Word COM)
-- Microsoft Word installed (for `.doc` files)
-- Python 3.x
+## Setup
 
-Install dependencies:
+Requires Python 3.11+.
 
 ```bash
-pip install -r requirements.txt
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install .
+```
+
+For legacy `.doc` support (Windows only):
+
+```bash
+pip install .[doc]
 ```
 
 ## Configuration
 
-Default folders are defined in `config.py`:
+Copy the example config and edit it:
 
-```python
-DEFAULT_INPUT_FOLDER = "sample"
-DEFAULT_OUTPUT_FOLDER = "output"
+```bash
+cp config.py.example config.py
 ```
 
-Edit these values to change the defaults without using CLI arguments.
+Default input/output folders are defined in `config.py`. CLI arguments override them.
 
 ## Usage
 
@@ -41,19 +46,27 @@ Edit these values to change the defaults without using CLI arguments.
 python main.py [source_folder] [output_folder]
 ```
 
-Both arguments are optional and fall back to the defaults in `config.py`.
+Both arguments are optional and fall back to `config.py` defaults.
+
+**Options:**
+
+- `-r`, `--recursive` — scan subdirectories for documents
 
 **Examples:**
 
 ```bash
-# Use defaults from config.py (sample/ → output/)
+# Use defaults from config.py
 python main.py
 
-# Convert documents in a specific folder, save to default output folder
-python main.py /path/to/documents
-
-# Convert documents and save Markdown files to a specific folder
+# Specific folders
 python main.py /path/to/documents /path/to/output
+
+# Include subdirectories
+python main.py -r /path/to/documents
 ```
 
-Each converted file is saved as `<original_name>.md`. Conversion errors are reported per-file without stopping the batch.
+Each file is saved as `<original_name>.md`. Errors are reported per-file without stopping the batch.
+
+## License
+
+MIT

@@ -120,7 +120,11 @@ def convert_file(doc_path: Path, word_app: Any | None) -> str:
         return convert_pdf(doc_path)
     if suffix == ".doc":
         if word_app is None:
-            msg = f"Word COM instance required for .doc files: {doc_path}"
+            msg = (
+                "Cannot convert .doc file"
+                " (requires Windows + Microsoft Word + pywin32):"
+                f" {doc_path}"
+            )
             raise RuntimeError(msg)
         return convert_doc(doc_path, word_app)
     if suffix in SUPPORTED_EXTENSIONS:
@@ -178,12 +182,19 @@ def main() -> None:
     has_doc_files = any(f.suffix.lower() == ".doc" for f in doc_files)
 
     if has_doc_files:
-        import pythoncom
-        import win32com.client
+        try:
+            import pythoncom
+            import win32com.client
 
-        pythoncom.CoInitialize()
-        word = win32com.client.Dispatch("Word.Application")
-        word.Visible = False
+            pythoncom.CoInitialize()
+            word = win32com.client.Dispatch("Word.Application")
+            word.Visible = False
+        except ImportError:
+            print(
+                "Warning: pywin32 is not installed. Skipping .doc files."
+                " Install with: pip install folder-to-md[doc]"
+            )
+            doc_files = [f for f in doc_files if f.suffix.lower() != ".doc"]
 
     failures = 0
     try:

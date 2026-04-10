@@ -1,4 +1,4 @@
 from typing import Final
 
-DEFAULT_INPUT_FOLDER: Final[str] = r"C:\path\to\your\documents"
-DEFAULT_OUTPUT_FOLDER: Final[str] = r"C:\path\to\your\output"
+DEFAULT_INPUT_FOLDER: Final[str] = "sample"
+DEFAULT_OUTPUT_FOLDER: Final[str] = "output"

@@ -1,3 +1,0 @@
-pymupdf4llm
-markitdown
-pywin32

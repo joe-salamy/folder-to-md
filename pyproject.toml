@@ -3,11 +3,21 @@ name = "folder-to-md"
 version = "0.1.0"
 description = "Batch convert documents (PDF, DOCX, DOC, PPT, PPTX, EPUB) to Markdown"
 requires-python = ">=3.11"
+license = "MIT"
+authors = [
+    { name = "Joe Salamy" },
+]
+readme = "README.md"
 dependencies = [
     "pymupdf4llm",
     "markitdown",
-    "pywin32",
 ]
+
+[project.optional-dependencies]
+doc = ["pywin32"]
+
+[project.urls]
+Repository = "https://github.com/joe-salamy/folder-to-md"
 
 [tool.mypy]
 python_version = "3.11"
